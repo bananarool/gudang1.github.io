@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Gudang Konstruksi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        success: '#00B42A',
+                        danger: '#F53F3F',
+                        warning: '#FF7D00',
+                        dark: '#1D2129',
+                        darkLight: '#272E3B'
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto { content-visibility: auto; }
+            .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+            .scrollbar-hide::-webkit-scrollbar { display: none; }
+            select { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; }
+            @media print {
+                body * { visibility: hidden; }
+                .print-area, .print-area * { visibility: visible; }
+                .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+                .no-print { display: none !important; }
+            }
+            .notif-masuk { animation: slideIn .3s ease-out forwards; }
+            @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-dark dark:bg-dark dark:text-gray-200 transition-colors duration-300 font-sans">
+    <div id="notifikasi" class="fixed top-5 right-5 z-[9999] w-full max-w-xs hidden"></div>
+
+    <!-- HALAMAN LOGIN -->
+    <div id="halaman-login" class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white dark:bg-darkLight rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
+            <div class="text-center mb-8">
+                <h1 class="text-[clamp(1.5rem,3vw,2rem)] font-bold text-primary">SISTEM GUDANG</h1>
+                <p class="text-gray-500 dark:text-gray-400 mt-2">IRNC.NT</p>
+            </div>
+            <form id="form-login" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Username</label>
+                    <input type="text" id="input-username" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary" placeholder="Masukkan username" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Password</label>
+                    <input type="password" id="input-password" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary" placeholder="Masukkan kata sandi" required>
+                </div>
+                <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 rounded-lg transition">Masuk Sistem</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- HALAMAN UTAMA -->
+    <div id="halaman-utama" class="hidden min-h-screen flex">
+        <aside id="sidebar" class="w-[260px] lg:w-[280px] bg-white dark:bg-darkLight border-r border-gray-200 dark:border-gray-800 fixed h-full z-40 -translate-x-full lg:translate-x-0 transition-transform shadow-lg no-print">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-primary">INVENTORY GUDANG</h2>
+                <button id="tutup-sidebar" class="lg:hidden text-gray-500 hover:text-danger"><i class="fa fa-times text-xl"></i></button>
+            </div>
+            <nav class="p-3 h-[calc(100vh-64px)] overflow-y-auto scrollbar-hide">
+                <ul class="space-y-1">
+                    <li><a href="#dashboard" class="menu-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary/10 hover:text-primary bg-primary/10 text-primary"><i class="fa fa-tachometer w-5 text-center"></i> <span>Dashboard</span></a></li>
+                    <li class="has-access admin staf manager"><a href="#master-barang" class="menu-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary/10 hover:text-primary"><i class="fa fa-cube w-5 text-center"></i> <span>Master Barang</span></a></li>
+                    <li class="has-access admin staf manager"><a href="#barang-masuk" class="menu-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary/10 hover:text-primary"><i class="fa fa-arrow-circle-down w-5 text-center"></i> <span>Barang Masuk</span></a></li>
+                    <li class="has-access admin staf manager karyawan"><a href="#barang-keluar" class="menu-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary/10 hover:text-primary"><i class="fa fa-arrow-circle-up w-5 text-center"></i> <span>Barang Keluar</span></a></li>
+                    <li class="has-access admin staf manager"><a href="#kategori" class="menu-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary/10 hover:text-primary"><i class="fa fa-tags w-5 text-center"></i> <span>Kategori</span></a></li>
+                    <li class="has-access admin"><a href="#pengguna" class="menu-item flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary/10 hover:text-primary"><i class="fa fa-users w-5 text-center"></i> <span>Pengguna</span></a></li>
+                </ul>
+                <div class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button id="tombol-tema" class="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark transition">
+                        <i class="fa fa-moon-o dark:hidden"></i><i class="fa fa-sun-o hidden dark:inline"></i>
+                        <span class="dark:hidden">Mode Gelap</span><span class="hidden dark:inline">Mode Terang</span>
+                    </button>
+                    <button id="tombol-keluar" class="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-danger/10 hover:text-danger mt-1">
+                        <i class="fa fa-sign-out"></i> <span>Keluar</span>
+                    </button>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="flex-1 lg:ml-[280px] min-h-screen">
+            <header class="bg-white dark:bg-darkLight border-b border-gray-200 dark:border-gray-800 px-4 lg:px-6 py-3 sticky top-0 z-30 shadow-sm no-print">
+                <div class="flex justify-between items-center">
+                    <div class="flex gap-3 items-center">
+                        <button id="buka-sidebar" class="lg:hidden text-gray-500 hover:text-primary"><i class="fa fa-bars text-xl"></i></button>
+                        <h3 id="judul-halaman" class="font-semibold text-lg">Dashboard</h3>
+                    </div>
+                    <div class="text-sm"><span id="nama-role" class="font-medium text-primary"></span> <span id="nama-user-login" class="font-medium"></span></div>
+                </div>
+            </header>
+            <div class="p-4 lg:p-6">
+                <!-- DASHBOARD -->
+                <section id="konten-dashboard" class="konten-halaman print-area">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                            <div class="flex justify-between items-start">
+                                <div><p class="text-sm text-gray-500">Total Jenis Barang</p><h3 id="total-jenis" class="text-3xl font-bold">0</h3></div>
+                                <div class="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><i class="fa fa-cube text-xl"></i></div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                            <div class="flex justify-between items-start">
+                                <div><p class="text-sm text-gray-500">Total Stok</p><h3 id="total-stok" class="text-3xl font-bold">0</h3></div>
+                                <div class="w-12 h-12 rounded-lg bg-success/10 text-success flex items-center justify-center"><i class="fa fa-archive text-xl"></i></div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                            <div class="flex justify-between items-start">
+                                <div><p class="text-sm text-gray-500">Barang Masuk</p><h3 id="total-masuk" class="text-3xl font-bold">0</h3></div>
+                                <div class="w-12 h-12 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center"><i class="fa fa-arrow-circle-down text-xl"></i></div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                            <div class="flex justify-between items-start">
+                                <div><p class="text-sm text-gray-500">Barang Keluar</p><h3 id="total-keluar" class="text-3xl font-bold">0</h3></div>
+                                <div class="w-12 h-12 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center"><i class="fa fa-arrow-circle-up text-xl"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-warning/30 border-l-4 mb-6">
+                        <h4 class="font-semibold text-lg text-warning mb-3"><i class="fa fa-exclamation-triangle mr-2"></i>Peringatan Stok Rendah (&lt; 2)</h4>
+                        <div id="daftar-stok-kurang" class="text-sm text-gray-600 dark:text-gray-300"><p class="text-gray-400">Semua barang aman</p></div>
+                    </div>
+                </section>
+
+                <!-- MASTER BARANG -->
+                <section id="konten-master-barang" class="konten-halaman hidden print-area">
+                    <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div class="flex flex-col sm:flex-row gap-3 justify-between mb-6 no-print">
+                            <h3 class="font-semibold text-lg">Master Barang</h3>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <input type="text" id="cari-master" placeholder="Cari nama/kode..." class="px-4 py-2 border rounded-lg w-full sm:w-60 dark:bg-dark dark:border-gray-600">
+                                <button onclick="bukaPopup('popup-master')" class="bg-primary text-white px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-plus"></i> Tambah</button>
+                                <button onclick="cetakHalaman()" class="bg-gray-100 dark:bg-dark px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-print"></i> Cetak</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-lg border dark:border-gray-700">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 dark:bg-dark"><tr><th class="p-3">Kode</th><th class="p-3">Nama</th><th class="p-3">Kategori</th><th class="p-3">Stok</th><th class="p-3">Satuan</th><th class="p-3">Model/Tipe</th><th class="p-3">Lokasi</th><th class="p-3 no-print">Aksi</th></tr></thead>
+                                <tbody id="tabel-master-barang" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BARANG MASUK -->
+                <section id="konten-barang-masuk" class="konten-halaman hidden print-area">
+                    <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div class="flex flex-col sm:flex-row gap-3 justify-between mb-6 no-print">
+                            <h3 class="font-semibold text-lg">Barang Masuk</h3>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <input type="text" id="cari-masuk" placeholder="Cari..." class="px-4 py-2 border rounded-lg w-full sm:w-60 dark:bg-dark dark:border-gray-600">
+                                <button onclick="bukaPopup('popup-masuk')" class="bg-primary text-white px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-plus"></i> Tambah</button>
+                                <button onclick="cetakHalaman()" class="bg-gray-100 dark:bg-dark px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-print"></i> Cetak</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-lg border dark:border-gray-700">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 dark:bg-dark"><tr><th class="p-3">Kode</th><th class="p-3">Tanggal</th><th class="p-3">Nama</th><th class="p-3">Kategori</th><th class="p-3">Jumlah</th><th class="p-3">Satuan</th><th class="p-3">Petugas</th><th class="p-3 no-print">Aksi</th></tr></thead>
+                                <tbody id="tabel-barang-masuk" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BARANG KELUAR -->
+                <section id="konten-barang-keluar" class="konten-halaman hidden print-area">
+                    <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div class="flex flex-col sm:flex-row gap-3 justify-between mb-6 no-print">
+                            <h3 class="font-semibold text-lg">Barang Keluar</h3>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <input type="text" id="cari-keluar" placeholder="Cari..." class="px-4 py-2 border rounded-lg w-full sm:w-60 dark:bg-dark dark:border-gray-600">
+                                <button onclick="bukaPopup('popup-keluar')" class="bg-primary text-white px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-plus"></i> Tambah</button>
+                                <button onclick="cetakHalaman()" class="bg-gray-100 dark:bg-dark px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-print"></i> Cetak</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-lg border dark:border-gray-700">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 dark:bg-dark"><tr><th class="p-3">Kode</th><th class="p-3">Tanggal</th><th class="p-3">Nama</th><th class="p-3">Jumlah</th><th class="p-3">Keterangan</th><th class="p-3">Petugas</th><th class="p-3 no-print">Aksi</th></tr></thead>
+                                <tbody id="tabel-barang-keluar" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- KATEGORI -->
+                <section id="konten-kategori" class="konten-halaman hidden print-area">
+                    <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div class="flex flex-col sm:flex-row gap-3 justify-between mb-6 no-print">
+                            <h3 class="font-semibold text-lg">Kategori</h3>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <input type="text" id="cari-kategori" placeholder="Cari..." class="px-4 py-2 border rounded-lg w-full sm:w-60 dark:bg-dark dark:border-gray-600">
+                                <button onclick="bukaPopup('popup-kategori')" class="bg-primary text-white px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-plus"></i> Tambah</button>
+                                <button onclick="cetakHalaman()" class="bg-gray-100 dark:bg-dark px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-print"></i> Cetak</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-lg border dark:border-gray-700">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 dark:bg-dark"><tr><th class="p-3">Kode</th><th class="p-3">Nama Kategori</th><th class="p-3 no-print">Aksi</th></tr></thead>
+                                <tbody id="tabel-kategori" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PENGGUNA -->
+                <section id="konten-pengguna" class="konten-halaman hidden print-area">
+                    <div class="bg-white dark:bg-darkLight rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div class="flex flex-col sm:flex-row gap-3 justify-between mb-6 no-print">
+                            <h3 class="font-semibold text-lg">Pengguna Sistem</h3>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <input type="text" id="cari-pengguna" placeholder="Cari..." class="px-4 py-2 border rounded-lg w-full sm:w-60 dark:bg-dark dark:border-gray-600">
+                                <button onclick="bukaPopup('popup-pengguna')" class="bg-primary text-white px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-plus"></i> Tambah</button>
+                                <button onclick="cetakHalaman()" class="bg-gray-100 dark:bg-dark px-4 py-2 rounded-lg whitespace-nowrap"><i class="fa fa-print"></i> Cetak</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-lg border dark:border-gray-700">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 dark:bg-dark"><tr><th class="p-3">Kode</th><th class="p-3">Username</th><th class="p-3">Hak Akses</th><th class="p-3 no-print">Aksi</th></tr></thead>
+                                <tbody id="tabel-pengguna" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- POPUP UMUM -->
+    <div id="overlay-popup" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+        <!-- POPUP MASTER -->
+        <div id="popup-master" class="bg-white dark:bg-darkLight rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto scale-95 opacity-0 transition-all duration-200 hidden">
+            <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 class="font-bold">Data Barang</h3><button onclick="tutupPopup('popup-master')" class="text-gray-500 hover:text-danger"><i class="fa fa-times"></i></button></div>
+            <form id="form-master" class="p-5 space-y-4">
+                <input type="hidden" id="id-master">
+                <div><label class="block text-sm mb-1">Kode Barang</label><input type="text" id="kode-master" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                <div><label class="block text-sm mb-1">Nama Barang</label><input type="text" id="nama-master" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                <div><label class="block text-sm mb-1">Kategori</label><select id="kategori-master" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600"><option value=""></option></select></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">Stok Awal</label><input type="number" min="0" id="stok-master" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" value="0"></div>
+                    <div><label class="block text-sm mb-1">Satuan</label><input type="text" id="satuan-master" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" placeholder="bh, kg, m, dll"></div>
+                </div>
+                <div><label class="block text-sm mb-1">Model / Tipe</label><input type="text" id="model-master" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600"></div>
+                <div><label class="block text-sm mb-1">Lokasi Penyimpanan</label><input type="text" id="tempat-master" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600"></div>
+                <div class="flex gap-3 pt-2"><button type="button" onclick="tutupPopup('popup-master')" class="flex-1 py-2 border rounded dark:border-gray-600">Batal</button><button type="submit" class="flex-1 py-2 bg-primary text-white rounded">Simpan</button></div>
+            </form>
+        </div>
+
+        <!-- POPUP BARANG MASUK -->
+        <div id="popup-masuk" class="bg-white dark:bg-darkLight rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto scale-95 opacity-0 transition-all duration-200 hidden">
+            <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 class="font-bold">Transaksi Barang Masuk</h3><button onclick="tutupPopup('popup-masuk')" class="text-gray-500 hover:text-danger"><i class="fa fa-times"></i></button></div>
+            <form id="form-masuk" class="p-5 space-y-4">
+                <input type="hidden" id="id-masuk">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">Kode Transaksi</label><input type="text" id="kode-masuk" class="w-full px-3 py-2 border rounded bg-gray-100 dark:bg-dark dark:border-gray-600" readonly></div>
+                    <div><label class="block text-sm mb-1">Tanggal</label><input type="date" id="tanggal-masuk" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                </div>
+                <div><label class="block text-sm mb-1">Pilih Barang</label><select id="nama-masuk" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required><option value="">-- Pilih Barang --</option></select></div>
+                <div><label class="block text-sm mb-1">Kategori</label><input type="text" id="kategori-masuk" class="w-full px-3 py-2 border rounded bg-gray-100 dark:bg-dark dark:border-gray-600" readonly></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">Jumlah</label><input type="number" min="1" id="jumlah-masuk" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                    <div><label class="block text-sm mb-1">Satuan</label><input type="text" id="satuan-masuk" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600"></div>
+                </div>
+                <div><label class="block text-sm mb-1">Petugas</label><input type="text" id="petugas-masuk" class="w-full px-3 py-2 border rounded bg-gray-100 dark:bg-dark dark:border-gray-600" readonly></div>
+                <div class="flex gap-3 pt-2"><button type="button" onclick="tutupPopup('popup-masuk')" class="flex-1 py-2 border rounded dark:border-gray-600">Batal</button><button type="submit" class="flex-1 py-2 bg-primary text-white rounded">Simpan</button></div>
+            </form>
+        </div>
+
+        <!-- POPUP BARANG KELUAR -->
+        <div id="popup-keluar" class="bg-white dark:bg-darkLight rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto scale-95 opacity-0 transition-all duration-200 hidden">
+            <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 class="font-bold">Transaksi Barang Keluar</h3><button onclick="tutupPopup('popup-keluar')" class="text-gray-500 hover:text-danger"><i class="fa fa-times"></i></button></div>
+            <form id="form-keluar" class="p-5 space-y-4">
+                <input type="hidden" id="id-keluar">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">Kode Transaksi</label><input type="text" id="kode-keluar" class="w-full px-3 py-2 border rounded bg-gray-100 dark:bg-dark dark:border-gray-600" readonly></div>
+                    <div><label class="block text-sm mb-1">Tanggal</label><input type="date" id="tanggal-keluar" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                </div>
+                <div><label class="block text-sm mb-1">Pilih Barang</label><select id="nama-keluar" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required><option value="">-- Pilih Barang --</option></select></div>
+                <div><label class="block text-sm mb-1">Jumlah</label><input type="number" min="1" id="jumlah-keluar" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                <div><label class="block text-sm mb-1">Keterangan / Proyek</label><textarea id="keterangan-keluar" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" rows="2"></textarea></div>
+                <div><label class="block text-sm mb-1">Petugas</label><input type="text" id="petugas-keluar" class="w-full px-3 py-2 border rounded bg-gray-100 dark:bg-dark dark:border-gray-600" readonly></div>
+                <div class="flex gap-3 pt-2"><button type="button" onclick="tutupPopup('popup-keluar')" class="flex-1 py-2 border rounded dark:border-gray-600">Batal</button><button type="submit" class="flex-1 py-2 bg-primary text-white rounded">Simpan</button></div>
+            </form>
+        </div>
+
+        <!-- POPUP KATEGORI -->
+        <div id="popup-kategori" class="bg-white dark:bg-darkLight rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto scale-95 opacity-0 transition-all duration-200 hidden">
+            <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 class="font-bold">Data Kategori</h3><button onclick="tutupPopup('popup-kategori')" class="text-gray-500 hover:text-danger"><i class="fa fa-times"></i></button></div>
+            <form id="form-kategori" class="p-5 space-y-4">
+                <input type="hidden" id="id-kategori">
+                <div><label class="block text-sm mb-1">Kode Kategori</label><input type="text" id="kode-kategori" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                <div><label class="block text-sm mb-1">Nama Kategori</label><input type="text" id="nama-kategori" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                <div class="flex gap-3 pt-2"><button type="button" onclick="tutupPopup('popup-kategori')" class="flex-1 py-2 border rounded dark:border-gray-600">Batal</button><button type="submit" class="flex-1 py-2 bg-primary text-white rounded">Simpan</button></div>
+            </form>
+        </div>
+
+        <!-- POPUP PENGGUNA -->
+        <div id="popup-pengguna" class="bg-white dark:bg-darkLight rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto scale-95 opacity-0 transition-all duration-200 hidden">
+            <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 class="font-bold">Data Pengguna</h3><button onclick="tutupPopup('popup-pengguna')" class="text-gray-500 hover:text-danger"><i class="fa fa-times"></i></button></div>
+            <form id="form-pengguna" class="p-5 space-y-4">
+                <input type="hidden" id="id-pengguna">
+                <div><label class="block text-sm mb-1">Kode Pengguna</label><input type="text" id="kode-pengguna" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                <div><label class="block text-sm mb-1">Username</label><input type="text" id="nama-pengguna" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                <div><label class="block text-sm mb-1">Kata Sandi</label><input type="password" id="pass-pengguna" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600" required></div>
+                <div><label class="block text-sm mb-1">Hak Akses</label><select id="level-pengguna" class="w-full px-3 py-2 border rounded dark:bg-dark dark:border-gray-600">
+                    <option value="admin">Administrator</option>
+                    <option value="manager">Manajer</option>
+                    <option value="staf">Staf Gudang</option>
+                    <option value="karyawan">Karyawan</option>
+                </select></div>
+                <div class="flex gap-3 pt-2"><button type="button" onclick="tutupPopup('popup-pengguna')" class="flex-1 py-2 border rounded dark:border-gray-600">Batal</button><button type="submit" class="flex-1 py-2 bg-primary text-white rounded">Simpan</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- POPUP KONFIRMASI HAPUS -->
+    <div id="overlay-konfirmasi" class="fixed inset-0 bg-black/50 z-[60] hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-darkLight rounded-2xl w-full max-w-sm p-6 text-center">
+            <div class="w-16 h-16 rounded-full bg-danger/10 text-danger flex items-center justify-center mx-auto mb-4"><i class="fa fa-exclamation-triangle text-2xl"></i></div>
+            <h3 class="font-bold text-lg mb-2">Konfirmasi Hapus</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">Yakin ingin menghapus data ini? Tindakan ini tidak bisa dibatalkan.</p>
+            <div class="flex gap-3">
+                <button onclick="batalHapus()" class="flex-1 py-2 border rounded dark:border-gray-600">Batal</button>
+                <button id="btn-konfirmasi-hapus" onclick="konfirmasiHapus()" class="flex-1 py-2 bg-danger text-white rounded">Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==============================================
+        // 🔑 KONFIGURASI SUPABASE
+        // ==============================================
+        const SUPABASE_URL = "https://xwvkwzakhyasekeyhzzn.supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3dmt3emFraHlhc2VrZXloenpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NjEyOTcsImV4cCI6MjA5NzMzNzI5N30.rxdA9lczWgl757Y9sbm2D_ODcjOKDxBKMHk47KF2igA";
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let usernameAktif = "", levelAktif = "";
+        let hapusPending = { tabel: null, id: null };
+
+        // ==============================================
+        // 🔔 NOTIFIKASI
+        // ==============================================
+        function tampilNotif(jenis, pesan) {
+            const box = document.getElementById('notifikasi');
+            const ikon = jenis === 'sukses' ? 'fa-check-circle text-success' : 'fa-exclamation-circle text-danger';
+            box.innerHTML = `<div class="notif-masuk bg-white dark:bg-darkLight border-l-4 ${jenis==='sukses'?'border-success':'border-danger'} rounded-lg shadow-lg p-4 flex items-center gap-3"><i class="fa ${ikon} text-xl"></i><p class="font-medium">${pesan}</p></div>`;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 3000);
+        }
+
+        // ==============================================
+        // 🔐 LOGIN
+        // ==============================================
+        document.getElementById('form-login').addEventListener('submit', async e => {
+            e.preventDefault();
+            const u = document.getElementById('input-username').value.trim();
+            const p = document.getElementById('input-password').value.trim();
+            
+            if (!u || !p) {
+                tampilNotif('gagal', 'Username dan Password harus diisi');
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('pengguna')
+                .select('*')
+                .eq('username', u)
+                .eq('password', p)
+                .maybeSingle();
+
+            if (error || !data) {
+                tampilNotif('gagal', 'Username atau Kata Sandi SALAH');
+                return;
+            }
+
+            usernameAktif = data.username;
+            levelAktif = data.level;
+            aturHakAkses();
+            tampilNamaLevel();
+            document.getElementById('halaman-login').classList.add('hidden');
+            document.getElementById('halaman-utama').classList.remove('hidden');
+            await muatSemuaData();
+        });
+
+        function aturHakAkses(){
+            document.querySelectorAll('.has-access').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll(`.has-access.${levelAktif}`).forEach(el => el.classList.remove('hidden'));
+        }
+        function tampilNamaLevel(){
+            const nama = {admin:'Administrator',manager:'Manajer',staf:'Staf Gudang',karyawan:'Karyawan'};
+            document.getElementById('nama-role').textContent = nama[levelAktif] || levelAktif;
+            document.getElementById('nama-user-login').textContent = `(${usernameAktif})`;
+        }
+
+        // ==============================================
+        // 📦 POPUP & NAVIGASI
+        // ==============================================
+        function bukaPopup(id){
+            // Reset form dan hidden ID terlebih dahulu
+            const namaForm = id.replace('popup-', 'form-');
+            const frm = document.getElementById(namaForm);
+            if(frm) frm.reset();
+            
+            // Reset hidden ID fields
+            const hiddenId = document.getElementById('id-' + id.replace('popup-', ''));
+            if(hiddenId) hiddenId.value = '';
+
+            if(id === 'popup-masuk'){
+                const t = new Date();
+                const str = `${t.getFullYear()}${('0'+(t.getMonth()+1)).slice(-2)}${('0'+t.getDate()).slice(-2)}`;
+                document.getElementById('kode-masuk').value = `BM-${str}-${Math.floor(Math.random()*9000)+1000}`;
+                document.getElementById('petugas-masuk').value = usernameAktif;
+                document.getElementById('tanggal-masuk').valueAsDate = t;
+                document.getElementById('kategori-masuk').value = '';
+                muatPilihanBarang();
+            }
+            if(id === 'popup-keluar'){
+                const t = new Date();
+                const str = `${t.getFullYear()}${('0'+(t.getMonth()+1)).slice(-2)}${('0'+t.getDate()).slice(-2)}`;
+                document.getElementById('kode-keluar').value = `BK-${str}-${Math.floor(Math.random()*9000)+1000}`;
+                document.getElementById('petugas-keluar').value = usernameAktif;
+                document.getElementById('tanggal-keluar').valueAsDate = t;
+                muatPilihanBarang();
+            }
+            if(id === 'popup-master') muatPilihanKategori();
+
+            const overlay = document.getElementById('overlay-popup');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            const p = document.getElementById(id);
+            p.classList.remove('hidden');
+            // Trigger animation after a small delay
+            requestAnimationFrame(() => {
+                p.classList.remove('scale-95','opacity-0');
+                p.classList.add('scale-100','opacity-100');
+            });
+            document.body.style.overflow='hidden';
+        }
+
+        function tutupPopup(id){
+            const p = document.getElementById(id);
+            p.classList.remove('scale-100','opacity-100');
+            p.classList.add('scale-95','opacity-0');
+            setTimeout(()=>{
+                p.classList.add('hidden');
+                const overlay = document.getElementById('overlay-popup');
+                // Cek apakah masih ada popup lain yang terbuka
+                const adaPopupLain = overlay.querySelectorAll(':scope > div:not(.hidden)');
+                if(adaPopupLain.length === 0){
+                    overlay.classList.add('hidden');
+                    overlay.classList.remove('flex');
+                }
+            }, 200);
+            document.body.style.overflow='auto';
+            // Reset form
+            const namaForm = id.replace('popup-', 'form-');
+            const frm = document.getElementById(namaForm);
+            if(frm) frm.reset();
+            // Reset hidden ID
+            const hiddenId = document.getElementById('id-' + id.replace('popup-', ''));
+            if(hiddenId) hiddenId.value = '';
+        }
+
+        // Event listener untuk select barang masuk
+        document.getElementById('nama-masuk').addEventListener('change', function() {
+            setKategoriOtomatis(this.value);
+        });
+
+        async function setKategoriOtomatis(nama){
+            if(!nama) {
+                document.getElementById('kategori-masuk').value = '';
+                document.getElementById('satuan-masuk').value = '';
+                return;
+            }
+            const { data } = await supabaseClient.from('master_barang').select('kategori,satuan').eq('nama', nama).maybeSingle();
+            document.getElementById('kategori-masuk').value = data?.kategori || '';
+            document.getElementById('satuan-masuk').value = data?.satuan || '';
+        }
+
+        // ==============================================
+        // 📊 MUAT SEMUA DATA
+        // ==============================================
+        async function muatSemuaData(){
+            await Promise.all([muatMaster(), muatMasuk(), muatKeluar(), muatKategori(), muatPengguna(), hitungDashboard()]);
+        }
+
+        async function muatMaster(){
+            const {data, error} = await supabaseClient.from('master_barang').select('*').order('id');
+            if(error || !data) return;
+            const tb = document.getElementById('tabel-master-barang'); 
+            tb.innerHTML='';
+            data.forEach(r => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-dark/50';
+                row.innerHTML = `
+                    <td class="p-3">${escHtml(r.kode)}</td><td class="p-3">${escHtml(r.nama)}</td><td class="p-3">${escHtml(r.kategori||'-')}</td><td class="p-3 text-center">${r.stok}</td>
+                    <td class="p-3">${escHtml(r.satuan||'-')}</td><td class="p-3">${escHtml(r.model||'-')}</td><td class="p-3">${escHtml(r.tempat||'-')}</td>
+                    <td class="p-3 text-center no-print">
+                        <button class="text-blue-500 mr-2 btn-edit-master"><i class="fa fa-pencil"></i></button>
+                        <button class="text-danger btn-hapus" data-tabel="master_barang" data-id="${r.id}"><i class="fa fa-trash"></i></button>
+                    </td>`;
+                // Attach edit handler
+                row.querySelector('.btn-edit-master').addEventListener('click', () => editMaster(r));
+                row.querySelector('.btn-hapus').addEventListener('click', function(){ hapus(this.dataset.tabel, this.dataset.id); });
+                tb.appendChild(row);
+            });
+        }
+
+        async function muatMasuk(){
+            const {data, error} = await supabaseClient.from('barang_masuk').select('*').order('id');
+            if(error || !data) return;
+            const tb = document.getElementById('tabel-barang-masuk'); 
+            tb.innerHTML='';
+            data.forEach(r => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-dark/50';
+                row.innerHTML = `
+                    <td class="p-3">${escHtml(r.kode)}</td><td class="p-3">${r.tanggal}</td><td class="p-3">${escHtml(r.nama_barang)}</td><td class="p-3">${escHtml(r.kategori||'-')}</td>
+                    <td class="p-3 text-center">${r.jumlah}</td><td class="p-3">${escHtml(r.satuan||'-')}</td><td class="p-3">${escHtml(r.petugas)}</td>
+                    <td class="p-3 text-center no-print">
+                        <button class="text-blue-500 mr-2 btn-edit-masuk"><i class="fa fa-pencil"></i></button>
+                        <button class="text-danger btn-hapus" data-tabel="barang_masuk" data-id="${r.id}"><i class="fa fa-trash"></i></button>
+                    </td>`;
+                row.querySelector('.btn-edit-masuk').addEventListener('click', () => editMasuk(r));
+                row.querySelector('.btn-hapus').addEventListener('click', function(){ hapus(this.dataset.tabel, this.dataset.id); });
+                tb.appendChild(row);
+            });
+        }
+
+        async function muatKeluar(){
+            const {data, error} = await supabaseClient.from('barang_keluar').select('*').order('id');
+            if(error || !data) return;
+            const tb = document.getElementById('tabel-barang-keluar'); 
+            tb.innerHTML='';
+            data.forEach(r => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-dark/50';
+                row.innerHTML = `
+                    <td class="p-3">${escHtml(r.kode)}</td><td class="p-3">${r.tanggal}</td><td class="p-3">${escHtml(r.nama_barang)}</td><td class="p-3 text-center">${r.jumlah}</td>
+                    <td class="p-3">${escHtml(r.keterangan||'-')}</td><td class="p-3">${escHtml(r.petugas)}</td>
+                    <td class="p-3 text-center no-print">
+                        <button class="text-blue-500 mr-2 btn-edit-keluar"><i class="fa fa-pencil"></i></button>
+                        <button class="text-danger btn-hapus" data-tabel="barang_keluar" data-id="${r.id}"><i class="fa fa-trash"></i></button>
+                    </td>`;
+                row.querySelector('.btn-edit-keluar').addEventListener('click', () => editKeluar(r));
+                row.querySelector('.btn-hapus').addEventListener('click', function(){ hapus(this.dataset.tabel, this.dataset.id); });
+                tb.appendChild(row);
+            });
+        }
+
+        async function muatKategori(){
+            const {data, error} = await supabaseClient.from('kategori').select('*').order('id');
+            if(error || !data) return;
+            const tb = document.getElementById('tabel-kategori'); 
+            tb.innerHTML='';
+            data.forEach(r => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-dark/50';
+                row.innerHTML = `
+                    <td class="p-3">${escHtml(r.kode)}</td><td class="p-3">${escHtml(r.nama)}</td>
+                    <td class="p-3 text-center no-print">
+                        <button class="text-blue-500 mr-2 btn-edit-kategori"><i class="fa fa-pencil"></i></button>
+                        <button class="text-danger btn-hapus" data-tabel="kategori" data-id="${r.id}"><i class="fa fa-trash"></i></button>
+                    </td>`;
+                row.querySelector('.btn-edit-kategori').addEventListener('click', () => editKategori(r));
+                row.querySelector('.btn-hapus').addEventListener('click', function(){ hapus(this.dataset.tabel, this.dataset.id); });
+                tb.appendChild(row);
+            });
+        }
+
+        async function muatPengguna(){
+            const {data, error} = await supabaseClient.from('pengguna').select('*').order('id');
+            if(error || !data) return;
+            const tb = document.getElementById('tabel-pengguna'); 
+            tb.innerHTML='';
+            const namaLevel = {admin:'Administrator',manager:'Manajer',staf:'Staf Gudang',karyawan:'Karyawan'};
+            data.forEach(r => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-dark/50';
+                row.innerHTML = `
+                    <td class="p-3">${escHtml(r.kode)}</td><td class="p-3">${escHtml(r.username)}</td><td class="p-3">${namaLevel[r.level]||r.level}</td>
+                    <td class="p-3 text-center no-print">
+                        <button class="text-blue-500 mr-2 btn-edit-pengguna"><i class="fa fa-pencil"></i></button>
+                        <button class="text-danger btn-hapus" data-tabel="pengguna" data-id="${r.id}"><i class="fa fa-trash"></i></button>
+                    </td>`;
+                row.querySelector('.btn-edit-pengguna').addEventListener('click', () => editPengguna(r));
+                row.querySelector('.btn-hapus').addEventListener('click', function(){ hapus(this.dataset.tabel, this.dataset.id); });
+                tb.appendChild(row);
+            });
+        }
+
+        async function muatPilihanKategori(){
+            const {data} = await supabaseClient.from('kategori').select('nama');
+            const sel = document.getElementById('kategori-master'); 
+            sel.innerHTML='<option value="">-- Pilih Kategori --</option>';
+            if(data) data.forEach(r => sel.innerHTML += `<option value="${escHtml(r.nama)}">${escHtml(r.nama)}</option>`);
+        }
+
+        async function muatPilihanBarang(){
+            const {data} = await supabaseClient.from('master_barang').select('nama');
+            const sMasuk = document.getElementById('nama-masuk');
+            const sKeluar = document.getElementById('nama-keluar');
+            sMasuk.innerHTML='<option value="">-- Pilih Barang --</option>'; 
+            sKeluar.innerHTML='<option value="">-- Pilih Barang --</option>';
+            if(data) data.forEach(r => {
+                sMasuk.innerHTML += `<option value="${escHtml(r.nama)}">${escHtml(r.nama)}</option>`;
+                sKeluar.innerHTML += `<option value="${escHtml(r.nama)}">${escHtml(r.nama)}</option>`;
+            });
+        }
+
+        async function hitungDashboard(){
+            const {data:m} = await supabaseClient.from('master_barang').select('stok,nama');
+            const {data:ms} = await supabaseClient.from('barang_masuk').select('jumlah');
+            const {data:kl} = await supabaseClient.from('barang_keluar').select('jumlah');
+            
+            if(!m) return;
+            
+            document.getElementById('total-jenis').textContent = m.length;
+            const totalStok = m.reduce((a,b) => a + Number(b.stok||0), 0);
+            document.getElementById('total-stok').textContent = totalStok;
+            document.getElementById('total-masuk').textContent = (ms||[]).reduce((a,b) => a + Number(b.jumlah||0), 0);
+            document.getElementById('total-keluar').textContent = (kl||[]).reduce((a,b) => a + Number(b.jumlah||0), 0);
+            
+            const kurang = m.filter(x => Number(x.stok||0) < 2);
+            const list = document.getElementById('daftar-stok-kurang');
+            list.innerHTML = kurang.length 
+                ? `<ul class="space-y-1">${kurang.map(x => `<li class="flex items-center gap-2"><i class="fa fa-warning text-warning"></i> <span>${escHtml(x.nama)}</span> <span class="font-bold text-danger">(${x.stok})</span></li>`).join('')}</ul>` 
+                : '<p class="text-gray-400">Semua barang aman</p>';
+        }
+
+        // ==============================================
+        // ✏️ EDIT & ISI DATA KE FORM
+        // ==============================================
+        function editMaster(d){
+            document.getElementById('id-master').value = d.id;
+            document.getElementById('kode-master').value = d.kode;
+            document.getElementById('nama-master').value = d.nama;
+            document.getElementById('stok-master').value = d.stok;
+            document.getElementById('satuan-master').value = d.satuan || '';
+            document.getElementById('model-master').value = d.model || '';
+            document.getElementById('tempat-master').value = d.tempat || '';
+            bukaPopup('popup-master');
+            // Set kategori setelah popup terbuka (karena select diisi oleh muatPilihanKategori)
+            setTimeout(() => {
+                document.getElementById('kategori-master').value = d.kategori || '';
+            }, 100);
+        }
+
+        function editMasuk(d){
+            document.getElementById('id-masuk').value = d.id;
+            document.getElementById('kode-masuk').value = d.kode;
+            document.getElementById('tanggal-masuk').value = d.tanggal;
+            document.getElementById('kategori-masuk').value = d.kategori || '';
+            document.getElementById('jumlah-masuk').value = d.jumlah;
+            document.getElementById('satuan-masuk').value = d.satuan || '';
+            document.getElementById('petugas-masuk').value = d.petugas;
+            bukaPopup('popup-masuk');
+            setTimeout(() => {
+                document.getElementById('nama-masuk').value = d.nama_barang;
+            }, 100);
+        }
+
+        function editKeluar(d){
+            document.getElementById('id-keluar').value = d.id;
+            document.getElementById('kode-keluar').value = d.kode;
+            document.getElementById('tanggal-keluar').value = d.tanggal;
+            document.getElementById('jumlah-keluar').value = d.jumlah;
+            document.getElementById('keterangan-keluar').value = d.keterangan || '';
+            document.getElementById('petugas-keluar').value = d.petugas;
+            bukaPopup('popup-keluar');
+            setTimeout(() => {
+                document.getElementById('nama-keluar').value = d.nama_barang;
+            }, 100);
+        }
+
+        function editKategori(d){
+            document.getElementById('id-kategori').value = d.id;
+            document.getElementById('kode-kategori').value = d.kode;
+            document.getElementById('nama-kategori').value = d.nama;
+            bukaPopup('popup-kategori');
+        }
+
+        function editPengguna(d){
+            document.getElementById('id-pengguna').value = d.id;
+            document.getElementById('kode-pengguna').value = d.kode;
+            document.getElementById('nama-pengguna').value = d.username;
+            document.getElementById('pass-pengguna').value = d.password;
+            document.getElementById('level-pengguna').value = d.level;
+            bukaPopup('popup-pengguna');
+        }
+
+        // ==============================================
+        // 💾 SIMPAN DATA (TAMBAH / UBAH)
+        // ==============================================
+        document.getElementById('form-master').addEventListener('submit', async e => {
+            e.preventDefault();
+            const id = document.getElementById('id-master').value;
+            const data = {
+                kode: document.getElementById('kode-master').value.trim(),
+                nama: document.getElementById('nama-master').value.trim(),
+                kategori: document.getElementById('kategori-master').value || null,
+                stok: parseInt(document.getElementById('stok-master').value) || 0,
+                satuan: document.getElementById('satuan-master').value.trim() || null,
+                model: document.getElementById('model-master').value.trim() || null,
+                tempat: document.getElementById('tempat-master').value.trim() || null
+            };
+
+            if(!data.kode || !data.nama) {
+                return tampilNotif('gagal', 'Kode dan Nama Barang wajib diisi');
+            }
+
+            const { error } = id
+                ? await supabaseClient.from('master_barang').update(data).eq('id', id)
+                : await supabaseClient.from('master_barang').insert(data);
+
+            if (error) return tampilNotif('gagal', 'Kode/Nama sudah ada atau data tidak valid');
+            tampilNotif('sukses', 'Data barang tersimpan');
+            tutupPopup('popup-master');
+            await muatSemuaData();
+        });
+
+        document.getElementById('form-masuk').addEventListener('submit', async e => {
+            e.preventDefault();
+            const id = document.getElementById('id-masuk').value;
+            const namaBarang = document.getElementById('nama-masuk').value;
+            const jumlah = parseInt(document.getElementById('jumlah-masuk').value);
+
+            if(!namaBarang) return tampilNotif('gagal', 'Pilih barang terlebih dahulu');
+            if(!jumlah || jumlah < 1) return tampilNotif('gagal', 'Jumlah harus lebih dari 0');
+
+            const data = {
+                kode: document.getElementById('kode-masuk').value,
+                tanggal: document.getElementById('tanggal-masuk').value,
+                nama_barang: namaBarang,
+                kategori: document.getElementById('kategori-masuk').value || null,
+                jumlah: jumlah,
+                satuan: document.getElementById('satuan-masuk').value.trim() || null,
+                petugas: document.getElementById('petugas-masuk').value
+            };
+
+            if(!data.tanggal) return tampilNotif('gagal', 'Tanggal harus diisi');
+
+            // Jika edit, kembalikan stok lama dulu
+            if(id) {
+                const { data: oldData } = await supabaseClient.from('barang_masuk').select('nama_barang,jumlah').eq('id', id).maybeSingle();
+                if(oldData) {
+                    const { data: barangLama } = await supabaseClient.from('master_barang').select('stok').eq('nama', oldData.nama_barang).maybeSingle();
+                    if(barangLama) {
+                        await supabaseClient.from('master_barang').update({ stok: barangLama.stok - oldData.jumlah }).eq('nama', oldData.nama_barang);
+                    }
+                }
+            }
+
+            const { error } = id
+                ? await supabaseClient.from('barang_masuk').update(data).eq('id', id)
+                : await supabaseClient.from('barang_masuk').insert(data);
+
+            if (error) return tampilNotif('gagal', 'Gagal simpan transaksi');
+            
+            // Tambah stok
+            const { data: dataBarang } = await supabaseClient.from('master_barang').select('stok').eq('nama', data.nama_barang).maybeSingle();
+            if (dataBarang) {
+                await supabaseClient.from('master_barang').update({ stok: dataBarang.stok + data.jumlah }).eq('nama', data.nama_barang);
+            }
+            
+            tampilNotif('sukses', 'Barang masuk dicatat & stok diperbarui');
+            tutupPopup('popup-masuk');
+            await muatSemuaData();
+        });
+
+        document.getElementById('form-keluar').addEventListener('submit', async e => {
+            e.preventDefault();
+            const id = document.getElementById('id-keluar').value;
+            const namaBarang = document.getElementById('nama-keluar').value;
+            const jumlah = parseInt(document.getElementById('jumlah-keluar').value);
+
+            if(!namaBarang) return tampilNotif('gagal', 'Pilih barang terlebih dahulu');
+            if(!jumlah || jumlah < 1) return tampilNotif('gagal', 'Jumlah harus lebih dari 0');
+
+            const data = {
+                kode: document.getElementById('kode-keluar').value,
+                tanggal: document.getElementById('tanggal-keluar').value,
+                nama_barang: namaBarang,
+                jumlah: jumlah,
+                keterangan: document.getElementById('keterangan-keluar').value.trim() || null,
+                petugas: document.getElementById('petugas-keluar').value
+            };
+
+            if(!data.tanggal) return tampilNotif('gagal', 'Tanggal harus diisi');
+
+            // Jika edit, kembalikan stok lama dulu
+            if(id) {
+                const { data: oldData } = await supabaseClient.from('barang_keluar').select('nama_barang,jumlah').eq('id', id).maybeSingle();
+                if(oldData) {
+                    const { data: barangLama } = await supabaseClient.from('master_barang').select('stok').eq('nama', oldData.nama_barang).maybeSingle();
+                    if(barangLama) {
+                        await supabaseClient.from('master_barang').update({ stok: barangLama.stok + oldData.jumlah }).eq('nama', oldData.nama_barang);
+                    }
+                }
+            }
+
+            // Cek stok cukup atau tidak
+            const { data: cekStok } = await supabaseClient.from('master_barang').select('stok').eq('nama', data.nama_barang).maybeSingle();
+            if (!cekStok || cekStok.stok < data.jumlah) return tampilNotif('gagal', 'Stok tidak mencukupi!');
+
+            const { error } = id
+                ? await supabaseClient.from('barang_keluar').update(data).eq('id', id)
+                : await supabaseClient.from('barang_keluar').insert(data);
+
+            if (error) return tampilNotif('gagal', 'Gagal simpan pengeluaran');
+            
+            // Kurangi stok
+            await supabaseClient.from('master_barang').update({ stok: cekStok.stok - data.jumlah }).eq('nama', data.nama_barang);
+            
+            tampilNotif('sukses', 'Barang keluar dicatat & stok dikurangi');
+            tutupPopup('popup-keluar');
+            await muatSemuaData();
+        });
+
+        document.getElementById('form-kategori').addEventListener('submit', async e => {
+            e.preventDefault();
+            const id = document.getElementById('id-kategori').value;
+            const data = {
+                kode: document.getElementById('kode-kategori').value.trim(),
+                nama: document.getElementById('nama-kategori').value.trim()
+            };
+
+            if(!data.kode || !data.nama) return tampilNotif('gagal', 'Kode dan Nama Kategori wajib diisi');
+
+            const { error } = id
+                ? await supabaseClient.from('kategori').update(data).eq('id', id)
+                : await supabaseClient.from('kategori').insert(data);
+
+            if (error) return tampilNotif('gagal', 'Kode/Nama kategori sudah ada');
+            tampilNotif('sukses', 'Kategori tersimpan');
+            tutupPopup('popup-kategori');
+            await muatSemuaData();
+        });
+
+        document.getElementById('form-pengguna').addEventListener('submit', async e => {
+            e.preventDefault();
+            const id = document.getElementById('id-pengguna').value;
+            const data = {
+                kode: document.getElementById('kode-pengguna').value.trim(),
+                username: document.getElementById('nama-pengguna').value.trim(),
+                password: document.getElementById('pass-pengguna').value,
+                level: document.getElementById('level-pengguna').value
+            };
+
+            if(!data.kode || !data.username || !data.password) return tampilNotif('gagal', 'Semua field wajib diisi');
+
+            const { error } = id
+                ? await supabaseClient.from('pengguna').update(data).eq('id', id)
+                : await supabaseClient.from('pengguna').insert(data);
+
+            if (error) return tampilNotif('gagal', 'Username/Kode sudah dipakai');
+            tampilNotif('sukses', 'Data pengguna tersimpan');
+            tutupPopup('popup-pengguna');
+            await muatSemuaData();
+        });
+
+        // ==============================================
+        // 🗑️ HAPUS DATA (dengan konfirmasi popup)
+        // ==============================================
+        function hapus(tabel, id) {
+            hapusPending = { tabel, id };
+            const overlay = document.getElementById('overlay-konfirmasi');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+        }
+
+        function batalHapus(){
+            hapusPending = { tabel: null, id: null };
+            const overlay = document.getElementById('overlay-konfirmasi');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+        }
+
+        async function konfirmasiHapus(){
+            if(!hapusPending.tabel || !hapusPending.id) return;
+            
+            const { error } = await supabaseClient.from(hapusPending.tabel).delete().eq('id', hapusPending.id);
+            batalHapus();
+            
+            if (error) return tampilNotif('gagal', 'Tidak bisa hapus! Data masih dipakai di transaksi lain.');
+            tampilNotif('sukses', 'Data berhasil dihapus');
+            await muatSemuaData();
+        }
+
+        // ==============================================
+        // 🔍 FITUR CARI / FILTER (client-side filtering)
+        // ==============================================
+        document.getElementById('cari-master').addEventListener('input', () => filterTabel('master'));
+        document.getElementById('cari-masuk').addEventListener('input', () => filterTabel('masuk'));
+        document.getElementById('cari-keluar').addEventListener('input', () => filterTabel('keluar'));
+        document.getElementById('cari-kategori').addEventListener('input', () => filterTabel('kategori'));
+        document.getElementById('cari-pengguna').addEventListener('input', () => filterTabel('pengguna'));
+
+        function filterTabel(jenis){
+            let inputId, tabelId;
+            switch(jenis){
+                case 'master': inputId = 'cari-master'; tabelId = 'tabel-master-barang'; break;
+                case 'masuk': inputId = 'cari-masuk'; tabelId = 'tabel-barang-masuk'; break;
+                case 'keluar': inputId = 'cari-keluar'; tabelId = 'tabel-barang-keluar'; break;
+                case 'kategori': inputId = 'cari-kategori'; tabelId = 'tabel-kategori'; break;
+                case 'pengguna': inputId = 'cari-pengguna'; tabelId = 'tabel-pengguna'; break;
+            }
+            const kata = document.getElementById(inputId).value.toLowerCase();
+            const rows = document.getElementById(tabelId).querySelectorAll('tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(kata) ? '' : 'none';
+            });
+        }
+
+        // ==============================================
+        // 🧭 NAVIGASI MENU
+        // ==============================================
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.addEventListener('click', e => {
+                e.preventDefault();
+                const tujuan = link.getAttribute('href').substring(1);
+                
+                // Sembunyikan semua halaman
+                document.querySelectorAll('.konten-halaman').forEach(k => k.classList.add('hidden'));
+                // Tampilkan halaman yang dipilih
+                const target = document.getElementById(`konten-${tujuan}`);
+                if(target) target.classList.remove('hidden');
+                // Ubah judul
+                document.getElementById('judul-halaman').textContent = link.textContent.trim();
+                // Tandai menu aktif
+                document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('bg-primary/10','text-primary'));
+                link.classList.add('bg-primary/10','text-primary');
+                // Tutup sidebar di HP
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+            });
+        });
+
+        // Tombol Tema Gelap / Terang
+        document.getElementById('tombol-tema').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('tema', document.documentElement.classList.contains('dark') ? 'gelap' : 'terang');
+        });
+        // Muat pengaturan tema tersimpan
+        if(localStorage.getItem('tema') === 'gelap' || (!localStorage.getItem('tema') && window.matchMedia('(prefers-color-scheme: dark)').matches)){
+            document.documentElement.classList.add('dark');
+        }
+
+        // Buka / Tutup Sidebar HP
+        document.getElementById('buka-sidebar').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+        });
+        document.getElementById('tutup-sidebar').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+        });
+
+        // Fungsi Cetak
+        function cetakHalaman(){
+            window.print();
+        }
+
+        // Logout
+        document.getElementById('tombol-keluar').addEventListener('click', () => {
+            if(!confirm('Yakin ingin keluar dari sistem?')) return;
+            usernameAktif = ''; levelAktif = '';
+            document.getElementById('halaman-utama').classList.add('hidden');
+            document.getElementById('halaman-login').classList.remove('hidden');
+            document.getElementById('form-login').reset();
+            // Reset ke dashboard
+            document.querySelectorAll('.konten-halaman').forEach(k => k.classList.add('hidden'));
+            document.getElementById('konten-dashboard').classList.remove('hidden');
+            document.getElementById('judul-halaman').textContent = 'Dashboard';
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('bg-primary/10','text-primary'));
+            document.querySelector('.menu-item').classList.add('bg-primary/10','text-primary');
+        });
+
+        // ==============================================
+        // 🛡️ UTILITY: Escape HTML untuk mencegah XSS
+        // ==============================================
+        function escHtml(str){
+            if(!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ==============================================
+        // 🚀 INISIALISASI AWAL
+        // ==============================================
+        window.onload = () => {
+            document.getElementById('input-username').focus();
+        };
+    </script>
+</body>
+</html>
